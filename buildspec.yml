@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Vérification des outils CLI..."
+      - aws --version
+  build:
+    commands:
+      - echo "Déploiement des assets (exclusion index.html)..."
+      # Étape 1 : On pousse tout sauf l'index pour éviter le glitch utilisateur
+      - aws s3 sync . s3://$DEPLOY_BUCKET --delete --exclude "index.html" --exclude "buildspec.yml" --exclude ".git*"
+      
+      - echo "Déploiement de la page d'accueil..."
+      # Étape 2 : On pousse l'index en dernier
+      - aws s3 cp index.html s3://$DEPLOY_BUCKET/index.html
+  post_build:
+    commands:
+      - echo "Purge du cache CloudFront..."
+      # Étape 3 : Invalidation globale
+      - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DIST_ID --paths "/*"
+
+artifacts:
+  files:
+    - '**/*'
